@@ -6,16 +6,31 @@ const fs = require('fs');
 exports.addBook = async (req, res) => {
   try {
     const bookData = JSON.parse(req.body.book);
+    console.log('Données du livre reçu:', bookData); // Débogage
+
+    const userId = req.userId;
+
+    // Utiliser les valeurs de ratings et averageRating si elles existent, sinon les initialiser
+    const initialRating = bookData.rating ? {
+      userId,
+      grade: Math.min(5, Math.max(0, bookData.rating))
+    } : null;
+
+    const ratings = bookData.ratings && bookData.ratings.length > 0 ? bookData.ratings : (initialRating ? [initialRating] : []);
+    const averageRating = bookData.averageRating !== undefined ? bookData.averageRating : (initialRating ? initialRating.grade : 0);
+
     const book = new Book({
       ...bookData,
-      userId: req.userId,
+      userId,
       imageUrl: `${req.protocol}://${req.get('host')}/imagesAdd/${req.file.filename}`,
-      ratings: [], // Initialise le tableau des notations vide
-      averageRating: 0 // Initialise la note moyenne à 0
+      ratings: ratings,
+      averageRating: averageRating
     });
 
+    console.log('Livre prêt à être sauvegardé:', book); // Débogage
+
     await book.save();
-    res.status(201).json({ message: 'Livre ajouté avec succès !' });
+    res.status(201).json(book); // Retourner le livre complet après l'ajout
   } catch (error) {
     console.error('Erreur dans addBook:', error.message);
     res.status(400).json({ error: error.message });
@@ -101,7 +116,7 @@ exports.deleteBook = async (req, res) => {
   }
 };
 
-// ajout de la notation
+// Logique d'ajout de la notation
 exports.addRating = async (req, res) => {
   try {
     const { userId, rating } = req.body;
